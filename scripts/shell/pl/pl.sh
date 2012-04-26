@@ -21,6 +21,10 @@ show_usage() {
     echo "   $0 task_name list"
     echo "   $0 task_name pack"
     echo "   $0 seq format from count step"
+    echo 
+    echo "   Enviorment variables available in shell: PL_TASK_DIR"
+    echo "   Notify exec file when done: \$task_name/pl_notify"
+    echo
     echo " e.g."
     echo "   $0 create_tab_index run  5 parts.txt 20 create_index.sh billcompare/billcompare"
     echo "   $0 create_tab_index init 5 parts.txt 20 create_index.sh billcompare/billcompare"
@@ -102,6 +106,12 @@ run_worker() { # cmd worker_num
     done
     mv $task_name/worker/running/worker.$worker_num.pid $task_name/worker/$task_stop_flag/
     log "worker $task_name - $worker_num [pid=$$] $task_stop_flag."
+    test -x $task_name/pl_notify && test `ls $task_name/worker/running/|wc -l` -eq 0 && {  # notify when all worker finished.
+        if mv $task_name/pl_notify $task_name/pl_notify.$worker_num 2>/dev/null; then
+            log "all worker done, exec notify."
+            task_name=$task_name $task_name/pl_notify.$worker_num $task_name
+        fi
+    }
     trap - INT TERM EXIT
 }
 
