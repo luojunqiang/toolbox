@@ -17,7 +17,7 @@ show_usage() {
     echo "   $0 task_name start [worker_count]"
     echo "   $0 task_name stop  [worker_count]"
     echo "   $0 task_name abort"
-    echo "   $0 task_name status"
+    echo "   $0 task_name status [sleep_seconds [custom_command] ]"
     echo "   $0 task_name list"
     echo "   $0 task_name pack"
     echo "   $0 seq format from count step"
@@ -116,14 +116,27 @@ run_worker() { # cmd worker_num
 }
 
 show_status() {
-    log "task[$task_name] status:"
-    echo log "info ==="
-    ls -ltr $task_name/log/|tail -n 15
-    echo
-    find $task_name/data -type f -name 'input.*'|awk '/\/ready\//{r+=1} /\/proc\//{p+=1} /\/done\//{d+=1}
-        END{printf("task status: ======\n  task ready: %4d\n  task proc:  %4d\n  task done:  %4d\n\n",r,p,d)}'
-    find $task_name/worker -type f -name '*.pid'|awk '/\/finished\//{f+=1} /\/stopped\//{s+=1} /\/running\//{r+=1}
-        END{printf("worker status: ======\n  worker running:  %4d\n  worker stopped:  %4d\n  worker finished: %4d\n\n",r,s,f)}'
+    local sleep_seconds=0  has_custom_cmd=n
+    case $# in
+    1)   ;;
+    2)   sleep_seconds=$2; shift 1 ;;
+    *)   sleep_seconds=$2; has_custom_cmd=y; shift 2 ;;
+    esac
+    while true; do
+        log "task[$task_name] status:"
+        echo log "info ==="
+        ls -ltr $task_name/log/|tail -n 15
+        echo
+        find $task_name/data -type f -name 'input.*'|awk '/\/ready\//{r+=1} /\/proc\//{p+=1} /\/done\//{d+=1}
+            END{printf("task status: ======\n  task ready: %4d\n  task proc:  %4d\n  task done:  %4d\n\n",r,p,d)}'
+        find $task_name/worker -type f -name '*.pid'|awk '/\/finished\//{f+=1} /\/stopped\//{s+=1} /\/running\//{r+=1}
+            END{printf("worker status: ======\n  worker running:  %4d\n  worker stopped:  %4d\n  worker finished: %4d\n\n",r,s,f)}'
+        test $has_custom_cmd = y && $@
+        test $sleep_seconds -eq 0 && break
+        check_task_stopped && echo "=== All worker stopped. ===" && break
+        sleep $sleep_seconds
+        echo ==========================================
+    done
 }
 
 pack_dir() {
@@ -165,7 +178,7 @@ stop)   rm $task_name/pl.running.ctl ;;
 abort)  rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs echo kill -9 ;;
 abort!) rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs kill -9 ;;
 list)   find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
-status) show_status;;
+status) show_status "$@";;
 pack)   check_task_stopped && pack_dir ;;
 pack!)  pack_dir ;;
 #----------------------------------------------------------
