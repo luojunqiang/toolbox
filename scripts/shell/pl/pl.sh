@@ -96,7 +96,7 @@ run_worker() { # cmd worker_num
         work_file=$task_file.$worker_num
         if mv $task_name/data/ready/$task_file $task_name/data/proc/$work_file 2>/dev/null; then
             log "processing [$task_file]."
-            PL_TASK_DIR=$task_name  $task_cmdline <$task_name/data/proc/$work_file >>$task_name/log/$work_file.out 2>>$task_name/log/$work_file.err || {
+            PL_TASK_DIR=$task_name  $task_cmdline <$task_name/data/proc/$work_file >$task_name/log/$work_file.out 2>$task_name/log/$work_file.err || {
                 log "run [$task_cmdline] to process [$task_file] failed!"
                 task_stop_flag=stopped && break; 
             }
