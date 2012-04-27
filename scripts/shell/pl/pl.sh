@@ -21,7 +21,7 @@ show_usage() {
     echo "   $0 task_name list"
     echo "   $0 task_name pack"
     echo "   $0 seq format from count step"
-    echo 
+    echo
     echo "   Enviorment variables available in shell: PL_TASK_DIR"
     echo "   Notify exec file when done: \$task_name/pl_notify"
     echo
@@ -45,7 +45,12 @@ generate_seq() {
 }
 
 check_task_valid()   { test -d $task_name/worker/running || { echo "[$task_name] is not a valid task directory!"; return 1; } }
-check_task_stopped() { test `find $task_name/worker/running -type f |wc -l` -eq 0 || { echo "task[$task_name] is still running!"; return 2; } }
+
+check_task_stopped() {
+    local rc=0;
+    find $task_name/worker/running -type f |wc -l |read rc;
+    test $rc -eq 0 || { echo "task[$task_name] has $rc workers still running!"; return 2; }
+}
 
 init_task() { # init batch_size data_file worker_count cmd_line...
     local split_lines=$2  data_file=$3  worker_count=$4
@@ -98,11 +103,11 @@ run_worker() { # cmd worker_num
             log "processing [$task_file]."
             PL_TASK_DIR=$task_name  $task_cmdline <$task_name/data/proc/$work_file >$task_name/log/$work_file.out 2>$task_name/log/$work_file.err || {
                 log "run [$task_cmdline] to process [$task_file] failed!"
-                task_stop_flag=stopped && break; 
+                task_stop_flag=stopped && break;
             }
             mv $task_name/data/proc/$work_file $task_name/data/done/$work_file
         fi
-        test ${worker_num} -eq 0 && task_stop_flag=stopped && log "one file processed, test worker stopping." 
+        test ${worker_num} -eq 0 && task_stop_flag=stopped && log "one file processed, test worker stopping."
     done
     mv $task_name/worker/running/worker.$worker_num.pid $task_name/worker/$task_stop_flag/
     log "worker $task_name - $worker_num [pid=$$] $task_stop_flag."
@@ -168,7 +173,7 @@ run|launch|init) : ;;
 *) check_task_valid || exit 1 ;;
 esac
 
-case $cmd in 
+case $cmd in
 run|launch)  # run batch_size data_file worker_count task_cmd args...
     init_task "$@" && start_workers $task_name ;;
 init)   init_task "$@" ;;    # init batch_size data_file worker_count task_cmd args...
