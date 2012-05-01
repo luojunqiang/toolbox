@@ -1,6 +1,7 @@
 #!/bin/sh
 # Parallel Launcher v2.0
 # by luojunqiang@gmail.com at 2012-04-07
+#todo: pack related shell scripts. abort not clean related files.
 
 LANG=C; export LANG
 # set -x
@@ -178,25 +179,20 @@ shift
 cmd=$1
 
 case $cmd in
-run|launch|init) : ;;
-*) check_task_valid || exit 1 ;;
-esac
-
-case $cmd in
 run|launch)  # run batch_size data_file worker_count task_cmd args...
     init_task "$@" && start_workers $task_name ;;
 init)   init_task "$@" ;;    # init batch_size data_file worker_count task_cmd args...
-start)  start_workers "$@" ;;    # start [worker_count]
-test)   start_workers "$@" ;;    # test
-stop)   rm $task_name/pl.running.ctl ;;
-abort)  rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs echo kill -9 ;;
-abort!) rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs kill -9 ;;
-list)   find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
-status) show_status "$@";;
-pack)   check_task_stopped && pack_dir ;;
-pack!)  pack_dir ;;
+start)  check_task_valid && start_workers "$@" ;;    # start [worker_count]
+test)   check_task_valid && start_workers "$@" ;;    # test
+stop)   check_task_valid && rm $task_name/pl.running.ctl ;;
+abort)  check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs echo kill -9 ;;
+abort!) check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs kill -9 ;;
+list)   check_task_valid && find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
+status) check_task_valid && show_status "$@";;
+pack)   check_task_valid && check_task_stopped && pack_dir ;;
+pack!)  check_task_valid && pack_dir ;;
 #----------------------------------------------------------
-_pl_worker_)  run_worker "$@";;
+_pl_worker_)  check_task_valid && run_worker "$@";;
 *)  log "error: unknown command[$cmd]!" && show_usage ;;
 esac
 # EOF #
