@@ -21,8 +21,9 @@ show_usage() {
     echo "   $0 task_name list"
     echo "   $0 task_name pack"
     echo "   $0 seq format from count step"
+    echo "   $0 clean"
     echo
-    echo "   Enviorment variables available in shell: PL_TASK_DIR"
+    echo "   Enviorment variables available in shell: PL_TASK_DIR  PL_INPUT_FILE"
     echo "   Notify exec file when done: \$task_name/pl_notify"
     echo
     echo " e.g."
@@ -42,6 +43,12 @@ generate_seq() {
         printf "$format\n" $i
         i=$((i + step))
     done
+}
+
+clean_cwd() {
+    date "+%Y%m%d %Y%m%d%H%M%S" | read day now
+    mkdir -p pl.backup/$day
+    test -f tmp.sh && mv tmp.sh pl.backup/$day/tmp.sh.$now && ls -l pl.backup/$day/tmp.sh.$now
 }
 
 check_task_valid()   { test -d $task_name/worker/running || { echo "[$task_name] is not a valid task directory!"; return 1; } }
@@ -101,7 +108,8 @@ run_worker() { # cmd worker_num
         work_file=$task_file.$worker_num
         if mv $task_name/data/ready/$task_file $task_name/data/proc/$work_file 2>/dev/null; then
             log "processing [$task_file]."
-            PL_TASK_DIR=$task_name  $task_cmdline <$task_name/data/proc/$work_file >$task_name/log/$work_file.out 2>$task_name/log/$work_file.err || {
+            PL_TASK_DIR=$task_name PL_INPUT_FILE=$task_name/data/proc/$work_file \
+            $task_cmdline <$task_name/data/proc/$work_file >$task_name/log/$work_file.out 2>$task_name/log/$work_file.err || {
                 log "run [$task_cmdline] to process [$task_file] failed!"
                 task_stop_flag=stopped && break;
             }
@@ -161,6 +169,7 @@ test $# -gt 0 || show_usage
 
 case $1 in
 seq)   shift; generate_seq "$@"; exit;;
+clean) shift; clean_cwd "$@"; exit;;
 help)  show_usage; exit;;
 esac
 
