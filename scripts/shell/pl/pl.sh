@@ -61,8 +61,15 @@ check_task_stopped() {
 
 check_workers() {
     find $task_name/worker/running/ -type f -name 'worker.*.pid' |while read pidf; do
-        kill -0 `<$pidf` || { log "worker $pidf not running."; mv $pidf $task_name/worker/stopped/; }
+        kill -0 `awk '{print $1}' <$pidf` || { log "worker $pidf not running."; mv $pidf $task_name/worker/stopped/; }
     done
+}
+
+abort_workers() {
+    local kill_cmd=kill
+    test x$1 = x"abort!" || kill_cmd="echo kill"
+    rm -f $task_name/pl.running.ctl
+    cat $task_name/worker/running/worker.*.pid |awk '{print $2}' |xargs $kill_cmd -9 --
 }
 
 backup_program() {
@@ -115,7 +122,7 @@ start_workers() { # start/test [number_of_new_workers]
 run_worker() { # cmd worker_num
     local worker_num=$2  task_stop_flag=  work_file=  task_cmdline=`<$task_name/.pl.task_cmdline`
     log "worker $task_name - $worker_num [pid=$$] started."
-    echo $$ >$task_name/worker/running/worker.$worker_num.pid
+    echo "$$ -$PPID" >$task_name/worker/running/worker.$worker_num.pid
     trap "task_stop_flag=${task_stop_flag:-stopped}" INT TERM EXIT
     while test -z "$task_stop_flag" ; do
         test -f $task_name/pl.running.ctl ||{ log "canceling worker." && task_stop_flag=stopped && break; }
@@ -199,8 +206,7 @@ init)   init_task "$@" ;;    # init batch_size data_file worker_count task_cmd a
 start)  check_task_valid && start_workers "$@" ;;    # start [worker_count]
 test)   check_task_valid && start_workers "$@" ;;    # test
 stop)   check_task_valid && rm $task_name/pl.running.ctl ;;
-abort)  check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs echo kill -9 ;;
-abort!) check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs kill -9 ;;
+abort|abort!)  check_task_valid && abort_workers "$@" ;;
 check)  check_task_valid && check_workers ;;
 list)   check_task_valid && find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
 status) check_task_valid && show_status "$@";;
