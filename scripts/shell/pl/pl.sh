@@ -1,7 +1,6 @@
 #!/bin/sh
 # Parallel Launcher v2.0
 # by luojunqiang@gmail.com at 2012-04-07
-#todo: pack related shell scripts. abort not clean related files.
 
 LANG=C; export LANG
 # set -x
@@ -60,15 +59,23 @@ check_task_stopped() {
     test $rc -eq 0 || { echo "task[$task_name] has $rc workers still running!"; return 2; }
 }
 
+backup_program() {
+    for f in `<$task_name/.pl.task_cmdline`; do
+        test -f $f && cp -p $f $task_name/backup/ && break
+    done
+}
+
 init_task() { # init batch_size data_file worker_count cmd_line...
     local split_lines=$2  data_file=$3  worker_count=$4
     shift 4
     mkdir -p $task_name
-    mkdir $task_name/data $task_name/worker $task_name/tmp $task_name/log
+    mkdir $task_name/data $task_name/worker $task_name/tmp $task_name/log $task_name/backup
     mkdir $task_name/data/ready $task_name/data/proc $task_name/data/done
     mkdir $task_name/worker/running $task_name/worker/stopped $task_name/worker/finished    # worker pid folders
     split -a4 -l $split_lines $data_file $task_name/data/ready/input.
+    gzip -9c $data_file >$task_name/backup/input.$data_file.gz
     echo "$@" >$task_name/.pl.task_cmdline
+    backup_program
     echo $worker_count >$task_name/.pl.worker_count
 }
 
@@ -89,6 +96,7 @@ start_workers() { # start/test [number_of_new_workers]
         echo $worker_num_limit > $task_name/.pl.next_worker_num
     fi
     touch $task_name/pl.running.ctl  # worker controller
+    backup_program
     while [ $i -lt $worker_num_limit ]; do
         local worker_num=`printf %04d $i`
         nohup $0 $task_name _pl_worker_ $worker_num >>$task_name/worker/worker.$worker_num.log 2>>$task_name/worker/worker.$worker_num.err &
