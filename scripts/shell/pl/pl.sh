@@ -112,7 +112,7 @@ start_workers() { # start/test [number_of_new_workers]
     backup_program
     while [ $i -lt $worker_num_limit ]; do
         local worker_num=`printf %04d $i`
-        nohup $0 $task_name _pl_worker_ $worker_num >>$task_name/worker/worker.$worker_num.log 2>>$task_name/worker/worker.$worker_num.err &
+        PL_PGID=$$ nohup $0 $task_name _pl_worker_ $worker_num >>$task_name/worker/worker.$worker_num.log 2>>$task_name/worker/worker.$worker_num.err &
         log "launched worker.$worker_num [$!]."
         i=$((i + 1))
     done
@@ -122,7 +122,7 @@ start_workers() { # start/test [number_of_new_workers]
 run_worker() { # cmd worker_num
     local worker_num=$2  task_stop_flag=  work_file=  task_cmdline=`<$task_name/.pl.task_cmdline`
     log "worker $task_name - $worker_num [pid=$$] started."
-    echo "$$ -$PPID" >$task_name/worker/running/worker.$worker_num.pid
+    echo "$$ -$PL_PGID" >$task_name/worker/running/worker.$worker_num.pid
     trap "task_stop_flag=${task_stop_flag:-stopped}" INT TERM EXIT
     while test -z "$task_stop_flag" ; do
         test -f $task_name/pl.running.ctl ||{ log "canceling worker." && task_stop_flag=stopped && break; }
