@@ -59,6 +59,12 @@ check_task_stopped() {
     test $rc -eq 0 || { echo "task[$task_name] has $rc workers still running!"; return 2; }
 }
 
+check_workers() {
+    find $task_name/worker/running/ -type f -name 'worker.*.pid' |while read pidf; do
+        kill -0 `<$pidf` || { log "worker $pidf not running."; mv $pidf $task_name/worker/stopped/; }
+    done
+}
+
 backup_program() {
     for f in `<$task_name/.pl.task_cmdline`; do
         test -f $f && cp -p $f $task_name/backup/ && break
@@ -195,6 +201,7 @@ test)   check_task_valid && start_workers "$@" ;;    # test
 stop)   check_task_valid && rm $task_name/pl.running.ctl ;;
 abort)  check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs echo kill -9 ;;
 abort!) check_task_valid && rm -f $task_name/pl.running.ctl && cat $task_name/worker/running/worker.*.pid |xargs kill -9 ;;
+check)  check_task_valid && check_workers ;;
 list)   check_task_valid && find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
 status) check_task_valid && show_status "$@";;
 pack)   check_task_valid && check_task_stopped && pack_dir ;;
