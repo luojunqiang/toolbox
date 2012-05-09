@@ -92,6 +92,17 @@ init_task() { # init batch_size data_file worker_count cmd_line...
     echo $worker_count >$task_name/.pl.worker_count
 }
 
+reset_task() {
+    find $task_name/data/proc/ -type f -name 'input.*' |awk -F/ '{print "mv "$0" '$task_name/data/ready/'"substr($NF,1,10)}' |sh
+    find $task_name/data/done/ -type f -name 'input.*' |awk -F/ '{print "mv "$0" '$task_name/data/ready/'"substr($NF,1,10)}' |sh
+    rm -f $task_name/.pl.next_worker_num
+    rm -rf $task_name/log/ &
+    rm -rf $task_name/worker/ &
+    wait
+    mkdir $task_name/log
+    mkdir $task_name/worker $task_name/worker/running $task_name/worker/stopped $task_name/worker/finished
+}
+
 start_workers() { # start/test [number_of_new_workers]
     local worker_count=0 i=1 worker_num_limit=0
     if [ "$1" = test ]; then
@@ -182,7 +193,7 @@ pack_dir() {
     fi
     date "+%Y%m%d %Y%m%d%H%M%S" | read day now
     mkdir -p pl.backup/$day
-    tar cf - $task_name |gzip -c > pl.backup/$day/$task_name.$now.tgz && rm -rf $task_name
+    tar cf - $task_name |gzip -c > pl.backup/$day/$task_name.$now.tgz
     ls -l pl.backup/$day/$task_name.$now.tgz
 }
 
@@ -207,11 +218,12 @@ start)  check_task_valid && start_workers "$@" ;;    # start [worker_count]
 test)   check_task_valid && start_workers "$@" ;;    # test
 stop)   check_task_valid && rm $task_name/pl.running.ctl ;;
 abort|abort!)  check_task_valid && abort_workers "$@" ;;
+reset)  check_task_valid &&  check_task_stopped && pack_dir && reset_task && show_status "$@";;
 check)  check_task_valid && check_workers ;;
 list)   check_task_valid && find $task_name/worker/running/ -type f -name '*.pid' -exec cat {} \;|awk '{printf("  running_worker_pid: %s\n", $0)}' ;;
 status) check_task_valid && show_status "$@";;
-pack)   check_task_valid && check_task_stopped && pack_dir ;;
-pack!)  check_task_valid && pack_dir ;;
+pack)   check_task_valid && check_task_stopped && pack_dir && rm -rf $task_name ;;
+pack!)  check_task_valid && pack_dir && rm -rf $task_name ;;
 #----------------------------------------------------------
 _pl_worker_)  check_task_valid && run_worker "$@";;
 *)  log "error: unknown command[$cmd]!" && show_usage ;;
