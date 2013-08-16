@@ -7,10 +7,6 @@ syncdata 用于将源表中的数据同步到目标表中。可以支持跨数�
 
 ## syncdata的配置文件说明 ##
 
-* `sync.driver = 'oracle.jdbc.driver.OracleDriver'`
-
-    连接参数数据库的驱动类名。
-    
 * `sync.batchCount = 200`
 
     每批次的条数。每从源表中查询出batchCount条记录，就会批量进行一次数据同步。
