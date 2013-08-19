@@ -11,8 +11,11 @@ import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.classic.LoggerContext;
 
 import groovy.sql.Sql
+import groovy.time.*
 
-// CLASSPATH=$CLASSPATH:$ORACLE_HOME/jdbc/lib/ojdbc6.jar
+import com.huawei.cbs.common.CommonFunction
+
+// CLASSPATH=$CLASSPATH:$ORACLE_HOME/jdbc/lib/ojdbc6.jar:encrypasswd.jar
 
 def configLogger() {
     LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -32,22 +35,19 @@ def configLogger() {
     rootLogger.setLevel(Level.INFO);
 }
 
+class BreakException extends Exception {
+    public Throwable fillInStackTrace() {}
+}
+
 @Slf4j
 class SyncData {
     SyncData() {}
 
+    def bindingVars = [:]
     def config
     def source
     def target
     int totalCount = 0
-
-    def parseParam(String configFile) {
-        config = new ConfigSlurper().parse(new File(configFile).toURL())
-        
-        log.info "sync config sync = ${config.sync}"
-        //log.info "sync config source = ${config.source}"
-        //log.info "sync config target = ${config.target}"
-    }
 
     def commit() {
         log.info 'commit work.'
@@ -57,8 +57,9 @@ class SyncData {
 
     def processRows(db, sqls, rows) {
         sqls.each { sql ->
-            log.info "executing SQL [$sql] ..."
-            db.withBatch(sql) { stmt ->
+            def text = sql.toString()
+            log.info "executing SQL [$text] ..."
+            db.withBatch(text) { stmt ->
                 rows.each { row ->
                     //println "row = $row"
                     stmt.addBatch(row)
@@ -78,20 +79,43 @@ class SyncData {
         processRows(target, config.target.insert, rows)
         totalCount += rows.size()
         log.info "batch synced ${rows.size()} rows."
-        if (config.sync.batchCommit)
+        if (config.sync.batch_commit)
             commit()
         rows.clear()
     }
 
     def syncData() {
-        def rows = []
-        source.eachRow(config.source.query) { row ->
-            rows << row.toRowResult()
-            if (rows.size() >= config.sync.batchCount) {
+        log.info 'start syncing ...'
+        def querySql = config.source.query.toString()
+        while (true) {
+            def batchCount = 0
+            def rows = []
+            try {
+                def procClosure = { row ->
+                    def rr = row.toRowResult()
+                    rr.putAll(bindingVars)
+                    rows << rr
+                    if (rows.size() >= config.sync.batch_size) {
+                        syncRows(rows)
+                        ++batchCount
+                        if (config.sync.max_batch_count > 0
+                                && batchCount >= config.sync.max_batch_count) {
+                            throw new BreakException()
+                        }
+                    }
+                }
+                log.info "query source: [$querySql]"
+                if (source.preCheckForNamedParams(querySql)) {
+                    source.eachRow(querySql, bindingVars, procClosure)
+                } else {
+                    source.eachRow(querySql, procClosure)
+                }
                 syncRows(rows)
+                break
+            } catch (BreakException be) {
+                log.info("processed $batchCount batch.")
             }
-        } 
-        syncRows(rows)
+        }
     }
 
     def executeSqls(dbName, db, sqls) {
@@ -99,37 +123,86 @@ class SyncData {
             return
         log.info "executing SQL on db [$dbName] ..."
         sqls.each { sql ->
-            log.info "executing SQL [$sql]"
-            db.execute(sql)
+            def text = sql.toString()
+            log.info "executing SQL [$text]"
+            if (db.preCheckForNamedParams(text)) {
+                db.execute(text, bindingVars)
+            } else {
+                db.execute(text)
+            }
         }
     }
 
-    def connectDatabase() {
-        source = Sql.newInstance("jdbc:oracle:thin:@127.0.0.1:1521:testdb", "testsync",
-                      "testsync", "oracle.jdbc.driver.OracleDriver")
-        source.connection.autoCommit = false
-        target = Sql.newInstance("jdbc:oracle:thin:@127.0.0.1:1521:testdb", "testsync",
-                      "testsync", "oracle.jdbc.driver.OracleDriver")
-        target.connection.autoCommit = false
+    def initSync(args) {
+        ParamManager pm = new ParamManager()
+        pm.init()
+        String syncConfigName = args.remove(0)
+        String configText
+        if (syncConfigName.startsWith("@")) {
+            configText = pm.getConfigText(syncConfigName.substring(1))
+        } else {
+            configText = new File(syncConfigName).toURL().text
+        }
+        log.info "sync config:\n$configText"
+        def configSluper = new ConfigSlurper()
+
+        // set config binding variables
+        args.each {
+            int pos = it.indexOf('=')
+            bindingVars[it.substring(0, pos)] = it.substring(pos + 1)
+        }
+        log.info("binding vars=$bindingVars")
+        configSluper.setBinding(bindingVars)
+
+        config = configSluper.parse(configText)
+
+        // connect databases
+        source = pm.getDbConnection(config.source.database.server)
+        target = pm.getDbConnection(config.target.database.server)
+
+        pm.close()
+        pm = null
     }
 
-    def run() {
-        log.info 'start syncing ...'
-        connectDatabase()
+    def preProcess() {
         log.info 'start preprocess ...'
         executeSqls('source', source, config.source.preprocess)
         executeSqls('target', target, config.target.preprocess)
-        log.info 'start syncing ...'
-        syncData()
+    }
+
+    def postProcess() {
         log.info 'start postprocess ...'
         executeSqls('source', source, config.source.postprocess)
         executeSqls('target', target, config.target.postprocess)
-        commit()
-        log.info "syncdata finished. total synced ${totalCount} rows."
+    }
+
+    def run(args) {
+        log.info 'start syncing ...'
+        initSync(args as List)
+        while (true) {
+            totalCount = 0
+            def timeStart = new Date()
+            preProcess()
+            syncData()
+            postProcess()
+            commit()
+            def timeStop = new Date()
+            def duration = TimeCategory.minus(timeStop, timeStart)
+            def ms = duration.toMilliseconds()
+            log.info "syncdata total synced ${totalCount} rows, used ${duration}(${ms} ms)."
+            if (!config.sync.non_stop)
+                break
+            log.info "sleep $config.sync.sleep_seconds seconds ..."
+            sleep(config.sync.sleep_seconds * 1000)
+        }
     }
 }
 
 configLogger()
 SyncData syncer = new SyncData()
-syncer.parseParam(args[0])
-syncer.run()
+syncer.run(args)
+
+
+// On Error: Your JDBC driver may not support null arguments for setObject. Consider using Groovy's InParameter feature
+// Try use a modern JDBC driver.
+
