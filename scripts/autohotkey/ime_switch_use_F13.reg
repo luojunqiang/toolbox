@@ -1,0 +1,6 @@
+Windows Registry Editor Version 5.00
+ 
+[HKEY_CURRENT_USER\Control Panel\Input Method\Hot Keys\00000010]   ;切出中文输入法
+"Key Modifiers"=hex:00,04,00,00       ;如果设置成全0不能工作
+"Target IME"=hex:00,00,00,00          ;这是组合键的目标输入法或行为，这个值可指向到默认的输入法
+"Virtual Key"=hex:7C,00,00,00         ;这是组合键的第二个，这个值是指F13
