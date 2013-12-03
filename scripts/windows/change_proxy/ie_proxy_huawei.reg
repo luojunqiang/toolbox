@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings]
+"MigrateProxy"=dword:00000001
+"ProxyEnable"=dword:00000001
+"ProxyHttp1.1"=dword:00000001
+"ProxyServer"="http://proxy.huawei.com:8080"
+"ProxyOverride"="localhost;127.0.0.1;<local>;rms*.huawei.com;*.huawei.com;10.*;172.19.*;www*.huaweidevice.com;bbs*.huaweidevice.com;support.huaweidevice.com;*.huaweimossel.com;*.huaweisymantec.com;*.hislicon.com;*.huaweimarine.com;*.smartcom.cc"
