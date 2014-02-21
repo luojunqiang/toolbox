@@ -1,0 +1,66 @@
+-- conn tester/masterkey
+
+SQL> create table test_dept as select * from scott.dept;
+ 
+Table created
+ 
+SQL> create or replace view vm_test_dept as select * from test_dept;
+ 
+View created
+ 
+SQL> create table test_dept_changes (op_type char(1) not null, op_time date not null, key_str varchar2(500));
+ 
+Table created
+ 
+SQL> create or replace trigger trg_vm_test_dept
+  2    instead of insert or update or delete on vm_test_dept
+  3    for each row
+  4  declare
+  5    -- local variables here
+  6  begin
+  7    if INSERTING then
+  8      insert into test_dept_changes (op_type, op_time, key_str) values('I',sysdate,:NEW.DEPTNO);
+  9      insert into test_dept(deptno,dname,loc) values(:NEW.deptno,:NEW.dname,:NEW.loc);
+ 10    elsif UPDATING then
+ 11      insert into test_dept_changes (op_type, op_time, key_str) values('U',sysdate,:OLD.DEPTNO);
+ 12      if :NEW.DEPTNO <> :OLD.DEPTNO then
+ 13        insert into test_dept_changes (op_type, op_time, key_str) values('U',sysdate,:NEW.DEPTNO);
+ 14      end if;
+ 15      update test_dept set deptno=:NEW.deptno,dname=:NEW.deptno,loc=:NEW.loc where deptno=:OLD.deptno and rownum=1;
+ 16    elsif DELETING then
+ 17      insert into test_dept_changes (op_type, op_time, key_str) values('D',sysdate,:OLD.DEPTNO);
+ 18      delete from test_dept where deptno=:OLD.deptno and rownum=1;
+ 19    end if;
+ 20  end trg_vm_test_dept;
+ 21  /
+ 
+Trigger created
+ 
+SQL> grant select,insert,update,delete on vm_test_dept to scott;
+ 
+Grant succeeded
+ 
+SQL> grant select on test_dept_changes to scott;
+ 
+Grant succeeded
+
+--------------------------------------------------------------------------------
+-- conn scott/tiger
+
+col key_str format a10
+alter session set nls_date_format='yyyy-mm-dd hh24:mi:ss';
+
+update tester.vm_test_dept set LOC='XX-'||LOC where deptno=20;
+commit;
+select * from tester.vm_test_dept;
+select * from tester.test_dept_changes;
+
+delete from tester.vm_test_dept where deptno=20;
+commit;
+select * from tester.vm_test_dept;
+select * from tester.test_dept_changes;
+
+insert into tester.vm_test_dept values(20,'RESEARCH','DALLAS');
+commit;
+select * from tester.vm_test_dept;
+select * from tester.test_dept_changes;
