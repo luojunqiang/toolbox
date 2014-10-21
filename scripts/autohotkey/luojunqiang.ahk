@@ -1,4 +1,4 @@
-
+;; Alt !, Ctrl ^,  Shift +, Win #
 ;#z::Run www.autohotkey.com
 
 
@@ -8,12 +8,21 @@
 kbl_En = 0x08040804 ; Chinese (People's Republic of China) US Keyboard
 kbl_Cn = 0xE0200804 ; Google PinYin
 
+; shift caps up => Chinese Input Method
 +Capslock up::
-SoundBeep
-SendInput {F13}
+;SoundBeep
+SendInput !+9
+SendInput !+0
+;SendInput {F13}
 ;SendInput, {CTRLDOWN}{SHIFTDOWN}{SHIFTUP}{CTRLUP}
 Return
 
+; control caps up => English Input Method
+^Capslock up::
+SendInput !+9
+Return
+
+; alt caps up
 !Capslock up::  PostMessage, 0x50, 2, 0,, A  ; Switch lang to next
 
 #4::
@@ -38,7 +47,7 @@ Else
 Return
 
 
-#9::
+#j::
 WinShow, eSpace
 IfWinExist, eSpace
 	WinActivate
@@ -54,9 +63,9 @@ TrayTip, Toggle Mic, Mic mute toggled, 2, 1
 SoundBeep, 800, 300
 Return
 
-
 #=::
-SendInput {Raw}================================================================================
+SendInput {= 80}
+;SendInput {Raw}================================================================================
 SendInput {Enter}
 Return
 
@@ -66,7 +75,7 @@ SendInput {Enter}
 Return
 
 #i:: SendInput {Raw}00231957
-#k:: SendInput {Raw}the-password
+#k:: SendInput {Raw}Fa4@huawei
 
 #\::
 FormatTime, CurrentDate,, yyyy-MM-dd
@@ -85,6 +94,32 @@ Return
 #IfWinActive ahk_class PuTTY
 #RAlt::LAlt
 #IfWinActive
+
+;#InputLevel 20
+;Capslock & i:: SendInput {Blind}{Up}
+;Capslock & k:: SendInput {Blind}{Down}
+;Capslock & j:: SendInput {Blind}{Left}
+;Capslock & l:: SendInput {Blind}{Right}
+;Capslock & 8:: SendInput {Blind}^{Up}
+;Capslock & ,:: SendInput {Blind}^{Down}
+;Capslock & h:: SendInput {Blind}^{Left}
+;Capslock & `;:: SendInput {Blind}^{Right}
+;Capslock & u:: SendInput {Blind}{Home}
+;Capslock & o:: SendInput {Blind}{End}
+;Capslock & y:: SendInput {Blind}{PgUp}
+;Capslock & p:: SendInput {Blind}{End}
+
+Capslock & k:: SendInput {Blind}{Up}
+Capslock & j:: SendInput {Blind}{Down}
+Capslock & h:: SendInput {Blind}{Left}
+Capslock & l:: SendInput {Blind}{Right}
+Capslock & i:: SendInput {Blind}{PgUp}
+Capslock & u:: SendInput {Blind}{PgDn}
+Capslock & y:: SendInput {Blind}{Home}
+Capslock & o:: SendInput {Blind}{End}
+
+Capslock & Backspace:: SendInput {Blind}{Del}
+;#InputLevel 0
 
 ;#Include %A_ScriptDir%\DragToScroll.ahk
 ;#Include %A_ScriptDir%\test.ahk
