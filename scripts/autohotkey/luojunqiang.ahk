@@ -91,6 +91,21 @@ Return
 StringReplace, clipboard, clipboard, \, /, All
 Return
 
+#F12::
+DetectHiddenWindows, On
+IfWinExist, ahk_class WindowsForms10.Window.8.app.0.3b95145
+{
+   DetectHiddenWindows, Off    
+   ; Check if its hidden
+   IfWinNotExist, ahk_class WindowsForms10.Window.8.app.0.3b95145
+   ; Script cant see it without detecting hidden windows, so...
+       WinShow ahk_class WindowsForms10.Window.8.app.0.3b95145
+   IfWinExist, ahk_class WindowsForms10.Window.8.app.0.3b95145
+   ; Script sees it without detecting hidden windows, so..
+       WinHide ahk_class WindowsForms10.Window.8.app.0.3b95145
+}
+Return
+
 #IfWinActive ahk_class PuTTY
 #RAlt::LAlt
 #IfWinActive
