@@ -19,10 +19,15 @@ create table sys_ddl_audit_log (
 );
 
 create or replace package pkg_sys_audit is
-    check_danger_ddl boolean := true;
+    check_danger_ddl_flag boolean := true;
+    log_ddl_flag boolean := true;
 
     procedure disable_check;
     procedure enable_check;
+    
+    procedure disable_log_ddl;
+    procedure enable_log_ddl;
+    
     procedure log_ddl(
         oper_user varchar2,
         oper_type varchar2, 
@@ -44,13 +49,25 @@ create or replace package body pkg_sys_audit is
     procedure disable_check
     is
     begin
-        check_danger_ddl := false;
+        check_danger_ddl_flag := false;
     end;
     
     procedure enable_check
     is
     begin
-        check_danger_ddl := true;
+        check_danger_ddl_flag := true;
+    end;
+
+    procedure disable_log_ddl
+    is
+    begin
+        log_ddl_flag := false;
+    end;
+    
+    procedure enable_log_ddl
+    is
+    begin
+        log_ddl_flag := true;
     end;
     
     procedure log_ddl(
@@ -67,6 +84,9 @@ create or replace package body pkg_sys_audit is
         sql_stmt_len pls_integer := 0;
         sql_inc_len pls_integer;
     begin
+        if not log_ddl_flag then
+            return;
+        end if;
         sql_count := ora_sql_txt(sql_text);
         for i in 1..sql_count loop
             sql_inc_len := length(sql_text(i));
@@ -121,7 +141,7 @@ create or replace trigger trg_sys_ddl_audit
     before ddl on schema 
 declare
 begin
-    if pkg_sys_audit.check_danger_ddl 
+    if pkg_sys_audit.check_danger_ddl_flag 
         and ora_sysevent in ('DROP', 'TRUNCATE')
         and ora_login_user = ora_dict_obj_owner 
         and ora_dict_obj_type='TABLE' 
@@ -134,7 +154,8 @@ begin
             ora_dict_obj_type,
             ora_dict_obj_name
         );
-        RAISE_APPLICATION_ERROR(-20999, 'Attempt to '||ora_sysevent||' a production table denied. Please contact DBA!');
+        RAISE_APPLICATION_ERROR(-20999, 'Attempt to '||ora_sysevent
+            ||' a production table denied. Please contact DBA!');
     else
         pkg_sys_audit.log_ddl(
             ora_login_user,
