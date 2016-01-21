@@ -2,6 +2,18 @@
 drop trigger trg_sys_ddl_audit;
 drop table sys_ddl_audit_log;
 
+create table SYS_DDL_AUDIT_EXC
+(
+  obj_type VARCHAR2(20) not null,
+  obj_name VARCHAR2(30) not null,
+  note     VARCHAR2(50),
+  constraint SYS_DDL_AUDIT_EXC primary key (OBJ_NAME, OBJ_TYPE)
+)
+organization index;
+
+-- insert into sys_ddl_audit_exc (OBJ_TYPE, OBJ_NAME, NOTE)
+--    values ('TABLE', 'SYS_DDL_AUDIT_EXC', 'for testing');
+
 create table sys_ddl_audit_log (
     oper_user   VARCHAR2(30),
     oper_time   TIMESTAMP(3),
@@ -138,15 +150,22 @@ end pkg_sys_audit;
 show errors
 
 create or replace trigger trg_sys_ddl_audit
-    before ddl on schema 
+    before ddl on schema
 declare
+    v_rejected boolean := false;
+    v_count number;
 begin
-    if pkg_sys_audit.check_danger_ddl_flag 
+    if pkg_sys_audit.check_danger_ddl_flag
         and ora_sysevent in ('DROP', 'TRUNCATE')
-        and ora_login_user = ora_dict_obj_owner 
-        and ora_dict_obj_type='TABLE' 
+        and ora_login_user = ora_dict_obj_owner
+        and ora_dict_obj_type='TABLE'
         and ora_dict_obj_name not like '%#%'
     then
+        select count(1) into v_count from SYS_DDL_AUDIT_EXC
+            where obj_type = ora_dict_obj_type and obj_name = ora_dict_obj_name;
+        v_rejected := v_count = 0;
+    end if;
+    if v_rejected then
         pkg_sys_audit.log_rejected_ddl(
             ora_login_user,
             ora_sysevent,
