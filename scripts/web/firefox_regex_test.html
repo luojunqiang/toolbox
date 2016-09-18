@@ -1,0 +1,15 @@
+<html>
+<head>
+<script>
+ function test() {
+   var regex = new RegExp("^" + document.getElementById("regex").value + "$");
+   alert(regex.test(document.getElementById("uri").value)?"match":"no match");
+ }
+</script>
+</head>
+<body>
+<p>Regular expression: <input type="text" id="regex" size="50"/></p>
+<p>URL: <input type="text" id="uri" size="50"/></p>
+<p><input type="button" value="Test" onclick="test();"/></p>
+</body>
+</html>
