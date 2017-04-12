@@ -21,14 +21,15 @@
 
 {
     "detect_indentation": false,
-    "font_face": "新宋体",
+    // "font_face": "新宋体",
+    // "font_face": "Ubuntu Mono",
     "font_face":"YaHei Consolas Hybrid",
-    "font_size": 9.0,
+    "font_size": 10.0,
     "font_options": ["no_bold"],
     "font_options": ["directwrite"],
     "highlight_line": true,
-    "http_proxy": "http://l00231957:Su3%40huawei@172.19.6.47:8080",
-    "https_proxy": "http://l00231957:Su3%40huawei@172.19.6.47:8080",
+    "http_proxy": "http://127.0.0.1:3218",
+    "https_proxy": "http://127.0.0.1:3218",
     "update_check": false,
 }
 ```
@@ -68,8 +69,10 @@ open(os.path.join(ipp,pf),'wb').write(
 )
 ```
 
-``` urllib.request.build_opener( urllib.request.ProxyHandler({"http":"http://l00231957:Wi4%40huawei@proxy:8080"})) ```
+``` urllib.request.build_opener( urllib.request.ProxyHandler({"http":"http://127.0.0.1:3218"}))
 
+// @ == %40
+```
 
 ```
 // Preferences > Package Settings > Package Control > Settings – User
@@ -78,6 +81,8 @@ open(os.path.join(ipp,pf),'wb').write(
     "timeout":120,
     //"proxy_username":"pass",
     //"proxy_password":"user"
+    "http_proxy":"127.0.0.1:3218",
+    "https_proxy":"127.0.0.1:3218"
 }
 ```
 
@@ -97,6 +102,9 @@ open(os.path.join(ipp,pf),'wb').write(
     "word_wrap": false,
 }
 ```
+### Monokai Extended
+
+Good markdown syntax color scheme.
 
 ### SmartMarkdown
 
@@ -111,6 +119,7 @@ Support heading fold and unfold.
   https://sublime.wbond.net/packages/GitGutter
 - PackageResourceViewer
 - GBK Encoding Support
+- Markdown Extended
 
 ## Basic
 
